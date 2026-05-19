@@ -25,49 +25,10 @@ jobs:
           repository: berkeley-cdss/course-site-actions 
           path: _course-site-actions
 
-      - uses: actions/setup-node@v4
+      - name: Run Accessibility Audit
+        uses: berkeley-cdss/myst-a11y@v1
         with:
-          node-version: 22.x
-          
-      - name: Install MyST Markdown, Axe CLI, and HTTP Server
-        run: npm install -g mystmd @axe-core/cli http-server wait-on
-        
-      - name: Install the plugins
-        run: npm install
-        
-      - name: Build HTML Assets
-        run: myst build --html
-        
-      - name: Get Matching Chrome version
-        run: npx browser-driver-manager install chrome
-        
-      # Serve, Discover URLs, and Run Axe
-      - name: Run Axe Checks
-        run: |
-          # A. Create a subdirectory structure that matches the BASE_URL
-          mkdir -p staging${{ inputs.base_url }}
-          cp -r _build/html/* staging${{ inputs.base_url }}/
-          
-          # B. Start a local server in the background
-          npx http-server staging -p 8080 -s &
-          npx wait-on http://localhost:8080${{ inputs.base_url }}/
-          
-          # C. Generate the URL list from the actual build artifacts
-          cd _build/html
-          URLS=$(find . -name "*.html" -not -path "*/build/*" | sed 's|^\./||' | sed "s|^|http://localhost:8080${{ inputs.base_url }}/|" | tr '\n' ' ')          
-          
-          # D. Run Axe CLI on the discovered URLs
-          axe $URLS \
-            --tags wcag2a,wcag2aa,wcag21a,wcag21aa \
-            --save axe-report.json \
-            --exit
-            
-      - name: Upload Accessibility Report
-        if: always() 
-        uses: actions/upload-artifact@v4
-        with:
-          name: axe-report
-          path: _build/html/axe-report.json
+          base_url: ${{ inputs.base_url }}
           
       - name: Calculate and Push Badge
         if: always()

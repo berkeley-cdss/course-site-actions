@@ -104,13 +104,6 @@ def generate_course_site(course_data, directory, config_vars, verbose):
 
 
 async def main():
-    for e in [
-        "SIS_COURSE_API_ID",
-        "SIS_COURSE_API_KEY",
-    ]:
-        if e not in os.environ:
-            raise Exception(f"'{e}' not defined in environment.")
-
     _google_analytics_tag = os.environ.get("GOOGLE_ANALYTICS_TAG", "")
     _author = os.environ.get("CONFIG_AUTHOR", "")
 
@@ -177,21 +170,33 @@ async def main():
 
     logging.basicConfig(level=log_level)
 
+    fetch_sis = True
     for e in [
         "SIS_COURSE_API_ID",
         "SIS_COURSE_API_KEY",
     ]:
         if e not in os.environ or not os.environ[e]:
             logging.info(f"'{e}' not defined or empty in environment. Skipping SIS API fetch.")
-            return
+            fetch_sis = False
+            break
+        else:
+            # Only print this for debugging purposes, be careful not to print the actual secret value!
+            logging.info(f"'{e}' IS defined in the environment (length {len(os.environ[e])}).")
 
-    # Fetch course data from SIS
-    data = await get_course_data(
-        os.environ.get("SIS_COURSE_API_ID"),
-        os.environ.get("SIS_COURSE_API_KEY"),
-        args.subject_area,
-        args.catalog_number,
-    )
+    # Fetch course data from SIS if keys exist
+    if fetch_sis:
+        try:
+            data = await get_course_data(
+                os.environ.get("SIS_COURSE_API_ID"),
+                os.environ.get("SIS_COURSE_API_KEY"),
+                args.subject_area,
+                args.catalog_number,
+            )
+        except Exception as e:
+            logging.error(f"Error fetching SIS data: {e}")
+            data = {}
+    else:
+        data = {}
 
     # Read data from local file if it exists
     override_data = None

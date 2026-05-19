@@ -118,7 +118,9 @@ jobs:
       COURSE_DATA_FILE: ${{ vars.COURSE_DATA_FILE || '/dev/null' }}
       GIT_NAME: ${{ vars.GIT_NAME }}
       GIT_EMAIL: ${{ vars.GIT_EMAIL }}
-    secrets: inherit
+    secrets:
+      SIS_COURSE_API_ID: ${{ secrets.SIS_COURSE_API_ID }}
+      SIS_COURSE_API_KEY: ${{ secrets.SIS_COURSE_API_KEY }}
     permissions:
       contents: write
 ```

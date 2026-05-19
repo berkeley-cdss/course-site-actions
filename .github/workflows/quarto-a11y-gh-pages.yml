@@ -1,0 +1,87 @@
+name: Quarto Accessibility Checks (from gh-pages)
+
+on:
+  workflow_call:
+    inputs:
+      site_subdir:
+        description: 'Site subdirectory, e.g., for user.github.io/repo it would be repo'
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
+
+jobs:
+  axe-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout Course Code
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          
+      - name: Checkout Actions Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: berkeley-cdss/course-site-actions 
+          path: _course-site-actions
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Axe and Server
+        run: npm install -g @axe-core/cli http-server wait-on
+
+      - name: Start Local Server
+        run: |
+          npx http-server ./ -p 3000 > /dev/null 2>&1 &
+          npx wait-on http://localhost:3000/
+
+      - name: Run Accessibility Scan
+        id: axe-scan
+        run: |
+          FIRST_URL=$(grep -m 1 "<loc>" sitemap.xml | sed 's/.*<loc>\(.*\)<\/loc>.*/\1/')
+          
+          echo "Sample URL from sitemap: $FIRST_URL"
+
+          BASE_URL_TO_REPLACE=$(echo "$FIRST_URL" | grep -oE "^https?://[^/]+/${{ inputs.site_subdir }}/")
+          
+          LOCAL_URL="http://localhost:3000/"
+          
+          if [ -z "$BASE_URL_TO_REPLACE" ]; then
+            echo "Error: Could not determine base URL from $FIRST_URL using subdir ${{ inputs.site_subdir }}"
+            exit 1
+          fi
+
+          echo "Replacing $BASE_URL_TO_REPLACE with $LOCAL_URL"
+
+          URLS=$(cat sitemap.xml | \
+            sed -n 's/.*<loc>\(.*\)<\/loc>.*/\1/p' | \
+            sed "s|$BASE_URL_TO_REPLACE|$LOCAL_URL|" | \
+            tr '\n' ' ')
+
+          echo "Scanning the following pages:"
+          echo "$URLS"
+
+          axe $URLS \
+            --tags wcag2a,wcag2aa,wcag21a,wcag21aa \
+            --save axe-report.json \
+            --exit
+
+      - name: Upload Accessibility Report
+        if: always() 
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-report
+          path: axe-report.json
+
+      - name: Calculate and Push Badge
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node _course-site-actions/scripts/generate-badge.js
+          bash _course-site-actions/scripts/push-badge.sh

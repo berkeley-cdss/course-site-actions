@@ -1,0 +1,96 @@
+name: Quarto Accessibility Checks (from main)
+
+on:
+  workflow_call:
+    inputs:
+      site_subdir:
+        description: 'Site subdirectory, e.g., for user.github.io/repo it would be repo'
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
+
+jobs:
+  axe-audit-render-from-main:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: read
+    
+    steps:
+      - name: Checkout Course Code
+        uses: actions/checkout@v4
+
+      - name: Checkout Actions Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: berkeley-cdss/course-site-actions 
+          path: _course-site-actions
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Render Quarto Project
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          to: html 
+
+      - name: Install Axe and Server
+        run: npm install -g @axe-core/cli http-server wait-on
+
+      - name: Set Production URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PAGES_URL=$(gh api repos/${{ github.repository }}/pages --template '{{.html_url}}')
+          echo "PRODUCTION_URL=$PAGES_URL" >> $GITHUB_ENV
+          echo "Detected Production URL: $PAGES_URL"
+
+      - name: Start Local Server
+        run: |
+          mkdir -p public/${{ inputs.site_subdir }}
+          cp -r _site/* public/${{ inputs.site_subdir }}/
+          
+          npx http-server ./public -p 3000 > /dev/null 2>&1 &
+          npx wait-on http://localhost:3000/
+
+      - name: Run Accessibility Scan
+        id: axe-scan
+        run: |
+          CLEAN_PROD_URL=$(echo "$PRODUCTION_URL" | sed 's|/$||')
+          LOCAL_URL="http://localhost:3000/${{ inputs.site_subdir }}/"
+          
+          URLS=$(cat _site/sitemap.xml | \
+            sed -n 's/.*<loc>\(.*\)<\/loc>.*/\1/p' | \
+            sed "s|$CLEAN_PROD_URL|$LOCAL_URL|" | \
+            tr '\n' ' ')
+
+          echo "Scanning the following pages:"
+          echo "$URLS"
+
+          axe $URLS \
+            --tags wcag2a,wcag2aa,wcag21a,wcag21aa \
+            --save axe-report.json \
+            --exit
+
+      - name: Upload Accessibility Report
+        if: always() 
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-report
+          path: axe-report.json
+
+      - name: Calculate and Push Badge
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node _course-site-actions/scripts/generate-badge.js
+          bash _course-site-actions/scripts/push-badge.sh

@@ -105,4 +105,5 @@ For example, using an HTML `<img>` tag (recommended to bypass build-time bundlin
 <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/berkeley-cdss/YOUR_REPO_NAME/badges/a11y-badge.json" alt="Accessibility Badge">
 ```
 
-*(Remember to replace `YOUR_REPO_NAME` with your actual repository name!)*
+> [!IMPORTANT]
+> Remember to replace `YOUR_REPO_NAME` with your actual repository name in the URL above!

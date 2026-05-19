@@ -85,6 +85,9 @@ jobs:
           --google-analytics-tag="${GOOGLE_ANALYTICS_TAG}" \
           --course-data-file="${COURSE_DATA_FILE}"
 
+    - name: Cleanup Actions Scripts
+      run: rm -rf _course-site-actions
+
     - name: Check for changes
       id: git-check
       run: |

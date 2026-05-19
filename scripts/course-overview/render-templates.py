@@ -181,8 +181,9 @@ async def main():
         "SIS_COURSE_API_ID",
         "SIS_COURSE_API_KEY",
     ]:
-        if e not in os.environ:
-            raise Exception("'{e}' not defined in environment.")
+        if e not in os.environ or not os.environ[e]:
+            logging.info(f"'{e}' not defined or empty in environment. Skipping SIS API fetch.")
+            return
 
     # Fetch course data from SIS
     data = await get_course_data(
@@ -194,13 +195,21 @@ async def main():
 
     # Read data from local file if it exists
     override_data = None
-    if args.course_data_file:
+    if args.course_data_file and os.path.exists(args.course_data_file):
         with open(args.course_data_file, "r") as f:
             override_data = yaml.safe_load(f)
+
+    # If no data is available from SIS, initialize an empty dict
+    if 'data' not in locals():
+        data = {}
 
     # Merge data from file
     if override_data:
         data.update(override_data)
+        
+    if not data:
+        logging.info("No SIS data and no override data found. Exiting cleanly.")
+        sys.exit(0)
 
     # Set various config parameters
     config_vars = dict(

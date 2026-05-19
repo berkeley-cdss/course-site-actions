@@ -6,7 +6,7 @@ The badge JSON is pushed to an orphaned `badges` branch so it doesn't pollute yo
 
 ## Supported Frameworks
 
-We provide workflows for both **MyST** and **Quarto** course websites.
+We provide workflows for **MyST**, **Quarto**, and **Jekyll (Course Overview)** websites.
 
 ---
 
@@ -87,6 +87,38 @@ jobs:
     uses: berkeley-cdss/course-site-actions/.github/workflows/quarto-a11y-gh-pages.yml@main
     with:
       site_subdir: ${{ github.event.repository.name }}
+    permissions:
+      contents: write
+```
+
+---
+
+## Course Overview (Jekyll)
+
+For the Jekyll-based course overview templates, use the `course-overview-update.yml` workflow. This workflow automates fetching course data from the SIS API, rendering it via Python/Jinja2 templates, and committing the changes back to the repository.
+
+Create or update `.github/workflows/update.yml`:
+
+```yaml
+name: Update website
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 2 1 * *"
+
+jobs:
+  update:
+    uses: berkeley-cdss/course-site-actions/.github/workflows/course-overview-update.yml@main
+    with:
+      SIS_SUBJECT_AREA: ${{ vars.SIS_SUBJECT_AREA }}
+      SIS_CATALOG_NUMBER: ${{ vars.SIS_CATALOG_NUMBER }}
+      AUTHOR: ${{ vars.AUTHOR }}
+      GOOGLE_ANALYTICS_TAG: ${{ vars.GOOGLE_ANALYTICS_TAG }}
+      COURSE_DATA_FILE: ${{ vars.COURSE_DATA_FILE || '/dev/null' }}
+      GIT_NAME: ${{ vars.GIT_NAME }}
+      GIT_EMAIL: ${{ vars.GIT_EMAIL }}
+    secrets: inherit
     permissions:
       contents: write
 ```

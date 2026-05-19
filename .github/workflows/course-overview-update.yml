@@ -27,9 +27,9 @@ on:
         type: string
     secrets:
       SIS_COURSE_API_ID:
-        required: true
+        required: false
       SIS_COURSE_API_KEY:
-        required: true
+        required: false
       CALLER_GITHUB_TOKEN:
         required: false
 

@@ -1,0 +1,101 @@
+name: Update Course Overview
+
+on:
+  workflow_call:
+    inputs:
+      SIS_SUBJECT_AREA:
+        required: true
+        type: string
+      SIS_CATALOG_NUMBER:
+        required: true
+        type: string
+      AUTHOR:
+        required: true
+        type: string
+      GOOGLE_ANALYTICS_TAG:
+        required: true
+        type: string
+      COURSE_DATA_FILE:
+        required: false
+        type: string
+        default: '/dev/null'
+      GIT_NAME:
+        required: true
+        type: string
+      GIT_EMAIL:
+        required: true
+        type: string
+    secrets:
+      SIS_COURSE_API_ID:
+        required: true
+      SIS_COURSE_API_KEY:
+        required: true
+      CALLER_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-course-data:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Checkout Actions Scripts
+      uses: actions/checkout@v4
+      with:
+        repository: berkeley-cdss/course-site-actions 
+        path: _course-site-actions
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        pip install -r _course-site-actions/scripts/course-overview/requirements.txt
+
+    - name: Configure git identity
+      env:
+        GIT_NAME: ${{ inputs.GIT_NAME }}
+        GIT_EMAIL: ${{ inputs.GIT_EMAIL }}
+      run: |
+        git config --global user.name "${GIT_NAME}"
+        git config --global user.email "${GIT_EMAIL}"
+
+    - name: Run script
+      env:
+        SIS_COURSE_API_ID: ${{ secrets.SIS_COURSE_API_ID }}
+        SIS_COURSE_API_KEY: ${{ secrets.SIS_COURSE_API_KEY }}
+        SIS_SUBJECT_AREA: ${{ inputs.SIS_SUBJECT_AREA }}
+        SIS_CATALOG_NUMBER: ${{ inputs.SIS_CATALOG_NUMBER }}
+        AUTHOR: ${{ inputs.AUTHOR }}
+        GOOGLE_ANALYTICS_TAG: ${{ inputs.GOOGLE_ANALYTICS_TAG }}
+        COURSE_DATA_FILE: ${{ inputs.COURSE_DATA_FILE }}
+      run: |
+        # Optional override file check. If the caller repo has .github/scripts/override.yml, 
+        # the render-templates.py might look for it. Let's make sure it still finds it if needed.
+        python _course-site-actions/scripts/course-overview/render-templates.py \
+          --subject-area="${SIS_SUBJECT_AREA}" \
+          --catalog-number="${SIS_CATALOG_NUMBER}" \
+          --author="${AUTHOR}" \
+          --google-analytics-tag="${GOOGLE_ANALYTICS_TAG}" \
+          --course-data-file="${COURSE_DATA_FILE}"
+
+    - name: Check for changes
+      id: git-check
+      run: |
+        git diff --exit-code || echo "changes=true" >> $GITHUB_OUTPUT
+
+    - name: Commit and push changes
+      if: steps.git-check.outputs.changes == 'true'
+      env:
+        # Fallback to secrets.GITHUB_TOKEN if CALLER_GITHUB_TOKEN isn't provided
+        GITHUB_TOKEN: ${{ secrets.CALLER_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      run: |
+        git add .
+        git commit -m "Update via GitHub Actions."
+        git push

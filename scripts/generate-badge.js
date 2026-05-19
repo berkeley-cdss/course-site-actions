@@ -1,10 +1,16 @@
 const fs = require('fs');
 
-if (!fs.existsSync('_build/html/axe-report.json')) {
+let reportPath = 'axe-report.json';
+if (!fs.existsSync(reportPath)) {
+  reportPath = '_build/html/axe-report.json';
+}
+
+if (!fs.existsSync(reportPath)) {
+  console.log('No axe-report.json found in root or _build/html/ directory.');
   process.exit(0);
 }
 
-const data = JSON.parse(fs.readFileSync('_build/html/axe-report.json', 'utf8'));
+const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
 let violationsCount = 0;
 let incompleteCount = 0;

@@ -1,0 +1,81 @@
+name: MyST Accessibility Checks
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'Base URL (subdir) where the site is served, e.g., /my-course. Leave empty for root domain.'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  axe-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to push to the badges branch
+    steps:
+      - name: Checkout Course Code
+        uses: actions/checkout@v4   
+
+      - name: Checkout Actions Scripts
+        uses: actions/checkout@v4
+        with:
+          # Replace this with the actual org/repo name when you push it to GitHub
+          repository: berkeley-cdss/course-site-actions 
+          path: _course-site-actions
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          
+      - name: Install MyST Markdown, Axe CLI, and HTTP Server
+        run: npm install -g mystmd @axe-core/cli http-server wait-on
+        
+      - name: Install the plugins
+        run: npm install
+        
+      - name: Build HTML Assets
+        run: myst build --html
+        
+      - name: Get Matching Chrome version
+        run: npx browser-driver-manager install chrome
+        
+      # Serve, Discover URLs, and Run Axe
+      - name: Run Axe Checks
+        run: |
+          # A. Create a subdirectory structure that matches the BASE_URL
+          mkdir -p staging${{ inputs.base_url }}
+          cp -r _build/html/* staging${{ inputs.base_url }}/
+          
+          # B. Start a local server in the background
+          npx http-server staging -p 8080 -s &
+          npx wait-on http://localhost:8080${{ inputs.base_url }}/
+          
+          # C. Generate the URL list from the actual build artifacts
+          cd _build/html
+          URLS=$(find . -name "*.html" -not -path "*/build/*" | sed 's|^\./||' | sed "s|^|http://localhost:8080${{ inputs.base_url }}/|" | tr '\n' ' ')          
+          
+          # D. Run Axe CLI on the discovered URLs
+          axe $URLS \
+            --tags wcag2a,wcag2aa,wcag21a,wcag21aa \
+            --save axe-report.json \
+            --exit
+            
+      - name: Upload Accessibility Report
+        if: always() 
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-report
+          path: _build/html/axe-report.json
+          
+      - name: Calculate and Push Badge
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Calculate the score and create the JSON file
+          node _course-site-actions/scripts/generate-badge.js
+          
+          # 2. Push to the orphaned 'badges' branch using Force Push
+          bash _course-site-actions/scripts/push-badge.sh

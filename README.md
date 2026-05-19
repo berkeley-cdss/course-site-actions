@@ -102,8 +102,8 @@ To display the badge on your website or in your `README.md`, use a Shields.io cu
 For example, using an HTML `<img>` tag (recommended to bypass build-time bundling):
 
 ```html
-<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/berkeley-cdss/YOUR_REPO_NAME/badges/a11y-badge.json" alt="Accessibility Badge">
+<img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/YOUR_ORG_NAME/YOUR_REPO_NAME/badges/a11y-badge.json" alt="Accessibility Badge">
 ```
 
 > [!IMPORTANT]
-> Remember to replace `YOUR_REPO_NAME` with your actual repository name in the URL above!
+> Remember to replace `YOUR_ORG_NAME` and `YOUR_REPO_NAME` with your actual GitHub org and repository names in the url parameter!

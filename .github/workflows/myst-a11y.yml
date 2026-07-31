@@ -16,10 +16,10 @@ jobs:
       contents: write # Required to push to the badges branch
     steps:
       - name: Checkout Course Code
-        uses: actions/checkout@v4   
+        uses: actions/checkout@v7
 
       - name: Checkout Actions Scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Replace this with the actual org/repo name when you push it to GitHub
           repository: berkeley-cdss/course-site-actions 

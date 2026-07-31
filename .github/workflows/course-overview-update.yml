@@ -41,10 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Checkout Actions Scripts
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: berkeley-cdss/course-site-actions 
         path: _course-site-actions
